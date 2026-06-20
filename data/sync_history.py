@@ -1,18 +1,12 @@
-from providers.nse_provider import (
-    NSEProvider
-)
-
+from providers.yahoo_provider import YahooProvider
 
 def main():
+    provider = YahooProvider()
 
-    provider = NSEProvider()
+    df = provider.get_history("RELIANCE")
 
-    provider.get_history(
-        "RELIANCE",
-        "2020-01-01",
-        "2025-12-31"
-    )
-
+    print(df.head())
+    print("Rows:", len(df))
 
 if __name__ == "__main__":
     main()

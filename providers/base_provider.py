@@ -1,9 +1,15 @@
-# providers/base_provider.py
-
 class BaseProvider:
 
-    def get_daily_data(self, date):
+    def get_history(
+        self,
+        symbol,
+        start_date,
+        end_date
+    ):
         raise NotImplementedError
 
-    def get_history(self, symbol):
+    def get_fundamentals(
+        self,
+        symbol
+    ):
         raise NotImplementedError

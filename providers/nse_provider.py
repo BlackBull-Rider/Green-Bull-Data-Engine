@@ -1,4 +1,4 @@
-import pandas as pd
+import requests
 
 from providers.base_provider import (
     BaseProvider
@@ -18,7 +18,7 @@ class NSEProvider(BaseProvider):
             f"NSE History Request: {symbol}"
         )
 
-        return pd.DataFrame()
+        return []
 
     def get_fundamentals(
         self,

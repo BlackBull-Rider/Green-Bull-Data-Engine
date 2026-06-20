@@ -1,5 +1,3 @@
-# init_db.py
-
 from core.db import get_connection
 
 
@@ -28,11 +26,42 @@ def create_tables():
     """)
 
     cur.execute("""
+    CREATE TABLE IF NOT EXISTS fundamental_data(
+
+        symbol TEXT PRIMARY KEY,
+
+        market_cap REAL,
+
+        pe REAL,
+        pb REAL,
+
+        roe REAL,
+        roce REAL,
+
+        debt_equity REAL,
+
+        sales_growth REAL,
+        profit_growth REAL,
+
+        promoter_holding REAL,
+
+        institutional_holding REAL,
+
+        fii_holding REAL,
+        dii_holding REAL,
+
+        updated_at TEXT
+    )
+    """)
+
+    cur.execute("""
     CREATE TABLE IF NOT EXISTS update_log(
 
         symbol TEXT PRIMARY KEY,
 
-        last_update TEXT
+        last_history_update TEXT,
+
+        last_fundamental_update TEXT
 
     )
     """)

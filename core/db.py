@@ -1,10 +1,11 @@
+# core/db.py
+
 import sqlite3
 from pathlib import Path
 
-DB_DIR = Path("database")
-DB_DIR.mkdir(exist_ok=True)
+Path("database").mkdir(exist_ok=True)
 
-DB_PATH = DB_DIR / "market.db"
+DB_PATH = "database/market.db"
 
 
 def get_connection():

@@ -3,6 +3,7 @@ from core.db import get_connection
 
 
 def save_fundamental(symbol, data):
+
     conn = get_connection()
     cur = conn.cursor()
 
@@ -48,29 +49,15 @@ def save_fundamental(symbol, data):
     conn.close()
 
 
-def get_fundamentals(symbol):
+def load_symbol(symbol):
+
     provider = YahooProvider()
 
-    ticker = provider.yf.Ticker(f"{symbol}.NS")
-    info = ticker.info
-
-    return {
-        "market_cap": info.get("marketCap"),
-        "pe": info.get("trailingPE"),
-        "pb": info.get("priceToBook"),
-        "roe": info.get("returnOnEquity"),
-        "dividend_yield": info.get("dividendYield"),
-        "eps": info.get("trailingEps"),
-        "book_value": info.get("bookValue")
-    }
-
-
-def load_symbol(symbol):
-    data = get_fundamentals(symbol)
+    data = provider.get_fundamentals(symbol)
 
     save_fundamental(symbol, data)
 
-    print(f"{symbol} fundamental saved")
+    print(symbol, "fundamental saved")
 
 
 def main():

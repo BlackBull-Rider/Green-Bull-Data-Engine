@@ -56,3 +56,19 @@ def load_symbol(symbol):
     conn.close()
 
     print(symbol, "indicator saved")
+
+def main():
+    symbols = [
+        "RELIANCE",
+        "TCS",
+        "INFY",
+        "HDFCBANK",
+        "ICICIBANK",
+        "SBIN"
+    ]
+
+    for symbol in symbols:
+        load_symbol(symbol)
+
+if __name__ == "__main__":
+    main()

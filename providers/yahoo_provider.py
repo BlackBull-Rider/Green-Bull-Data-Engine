@@ -19,3 +19,24 @@ class YahooProvider:
         )
 
         return df
+
+    def get_fundamentals(
+        self,
+        symbol
+    ):
+
+        ticker = yf.Ticker(
+            f"{symbol}.NS"
+        )
+
+        info = ticker.info
+
+        return {
+            "market_cap": info.get("marketCap"),
+            "pe": info.get("trailingPE"),
+            "pb": info.get("priceToBook"),
+            "roe": info.get("returnOnEquity"),
+            "dividend_yield": info.get("dividendYield"),
+            "eps": info.get("trailingEps"),
+            "book_value": info.get("bookValue")
+        }

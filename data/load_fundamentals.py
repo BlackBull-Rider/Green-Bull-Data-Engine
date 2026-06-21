@@ -1,13 +1,10 @@
 from providers.yahoo_provider import YahooProvider
 from core.db import get_connection
 
-from datetime import datetime
-
 
 def save_fundamental(data):
 
     conn = get_connection()
-
     cur = conn.cursor()
 
     cur.execute(
@@ -21,11 +18,17 @@ def save_fundamental(data):
             roe,
             roce,
             debt_equity,
-            eps,
-            book_value,
+            sales_growth,
+            profit_growth,
+            promoter_holding,
+            institutional_holding,
+            fii_holding,
+            dii_holding,
             dividend_yield,
             sector,
             industry,
+            eps,
+            book_value,
             current_ratio,
             quick_ratio,
             operating_margin,
@@ -38,43 +41,46 @@ def save_fundamental(data):
             week52_low,
             target_price,
             recommendation,
-            shares_outstanding,
-            updated_at
+            shares_outstanding
         )
         VALUES
         (
-            ?,?,?,?,?,?,?,?,?,?,
-            ?,?,?,?,?,?,?,?,?,?,
-            ?,?,?,?,?,?
+            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
         )
         """,
         (
-            data["symbol"],
-            data["market_cap"],
-            data["pe"],
-            data["pb"],
-            data["roe"],
-            data["roce"],
-            data["debt_equity"],
-            data["eps"],
-            data["book_value"],
-            data["dividend_yield"],
-            data["sector"],
-            data["industry"],
-            data["current_ratio"],
-            data["quick_ratio"],
-            data["operating_margin"],
-            data["net_margin"],
-            data["cash"],
-            data["free_cash_flow"],
-            data["enterprise_value"],
-            data["beta"],
-            data["week52_high"],
-            data["week52_low"],
-            data["target_price"],
-            data["recommendation"],
-            data["shares_outstanding"],
-            datetime.now().isoformat()
+            data.get("symbol"),
+            data.get("market_cap"),
+            data.get("pe"),
+            data.get("pb"),
+            data.get("roe"),
+            data.get("roce"),
+            data.get("debt_equity"),
+            data.get("sales_growth"),
+            data.get("profit_growth"),
+            data.get("promoter_holding"),
+            data.get("institutional_holding"),
+            data.get("fii_holding"),
+            data.get("dii_holding"),
+            data.get("dividend_yield"),
+            data.get("sector"),
+            data.get("industry"),
+            data.get("eps"),
+            data.get("book_value"),
+            data.get("current_ratio"),
+            data.get("quick_ratio"),
+            data.get("operating_margin"),
+            data.get("net_margin"),
+            data.get("cash"),
+            data.get("free_cash_flow"),
+            data.get("enterprise_value"),
+            data.get("beta"),
+            data.get("week52_high"),
+            data.get("week52_low"),
+            data.get("target_price"),
+            data.get("recommendation"),
+            data.get("shares_outstanding")
         )
     )
 
@@ -82,28 +88,54 @@ def save_fundamental(data):
     conn.close()
 
 
-def main():
+def load_symbol(symbol):
 
     provider = YahooProvider()
 
-    symbols = [
-        "RELIANCE",
-        "TCS",
-        "INFY",
-        "HDFCBANK",
-        "ICICIBANK",
-        "SBIN"
-    ]
+    data = provider.get_fundamentals(symbol)
 
-    for symbol in symbols:
+    if not data:
+        print(symbol, "no data")
+        return
+
+    data["symbol"] = symbol
+
+    save_fundamental(data)
+
+    print(symbol, "fundamental saved")
+
+
+def main():
+
+    conn = get_connection()
+    cur = conn.cursor()
+
+    cur.execute(
+        """
+        SELECT symbol
+        FROM stock_master
+        ORDER BY symbol
+        """
+    )
+
+    symbols = [row[0] for row in cur.fetchall()]
+
+    conn.close()
+
+    print(f"Found {len(symbols)} symbols")
+
+    import time
+
+    for i, symbol in enumerate(symbols, 1):
 
         try:
 
-            data = provider.get_fundamentals(symbol)
+            load_symbol(symbol)
 
-            save_fundamental(data)
+            if i % 50 == 0:
+                print(f"{i}/{len(symbols)} completed")
 
-            print(symbol, "saved")
+            time.sleep(1)
 
         except Exception as e:
 

@@ -63,19 +63,78 @@ class YahooProvider:
             "shares_outstanding": info.get("sharesOutstanding")
         }
 
+    def get_financials(self, symbol):
 
-def get_fundamentals(self, symbol):
-    ticker = yf.Ticker(f"{symbol}.NS")
-    info = ticker.info
+        ticker = yf.Ticker(f"{symbol}.NS")
 
-    return {
-        "symbol": symbol,
-        "market_cap": info.get("marketCap"),
-        "pe": info.get("trailingPE"),
-        "pb": info.get("priceToBook"),
-        "roe": info.get("returnOnEquity"),
-        "debt_equity": info.get("debtToEquity"),
-        "dividend_yield": info.get("dividendYield"),
-        "sector": info.get("sector"),
-        "industry": info.get("industry")
-    }
+        rows = []
+
+        try:
+            income = ticker.financials
+        except:
+            income = None
+
+        try:
+            balance = ticker.balance_sheet
+        except:
+            balance = None
+
+        try:
+            cashflow = ticker.cashflow
+        except:
+            cashflow = None
+
+        if income is None or income.empty:
+            return rows
+
+        for col in income.columns:
+
+            revenue = None
+            net_income = None
+            total_assets = None
+            total_debt = None
+            operating_cf = None
+            free_cf = None
+
+            try:
+                revenue = income.loc["Total Revenue", col]
+            except:
+                pass
+
+            try:
+                net_income = income.loc["Net Income", col]
+            except:
+                pass
+
+            try:
+                total_assets = balance.loc["Total Assets", col]
+            except:
+                pass
+
+            try:
+                total_debt = balance.loc["Total Debt", col]
+            except:
+                pass
+
+            try:
+                operating_cf = cashflow.loc["Operating Cash Flow", col]
+            except:
+                pass
+
+            try:
+                free_cf = cashflow.loc["Free Cash Flow", col]
+            except:
+                pass
+
+            rows.append({
+                "symbol": symbol,
+                "year": str(col.date()),
+                "revenue": revenue,
+                "net_income": net_income,
+                "total_assets": total_assets,
+                "total_debt": total_debt,
+                "operating_cf": operating_cf,
+                "free_cf": free_cf
+            })
+
+        return rows

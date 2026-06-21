@@ -5,20 +5,23 @@ import pandas as pd
 
 
 def load_symbol(symbol):
+
     conn = get_connection()
 
-    query = """
-    SELECT *
-    FROM historical_data
-    WHERE symbol = ?
-    ORDER BY date
-    """
-
     df = pd.read_sql_query(
-        query,
+        """
+        SELECT *
+        FROM historical_data
+        WHERE symbol=?
+        ORDER BY date
+        """,
         conn,
         params=(symbol,)
     )
+
+    if df.empty:
+        conn.close()
+        return
 
     df.rename(
         columns={
@@ -43,51 +46,121 @@ def load_symbol(symbol):
             (
                 symbol,
                 date,
+
                 ema20,
                 ema50,
                 ema200,
+
                 sma20,
                 sma50,
                 sma200,
+
                 rsi,
+
                 macd,
                 macd_signal,
                 macd_hist,
+
+                atr,
+                adx,
+                plus_di,
+                minus_di,
+
                 bb_upper,
                 bb_middle,
                 bb_lower,
+
                 stochastic_k,
                 stochastic_d,
+
+                cci,
                 williams_r,
+
                 obv,
                 vwap,
-                volume_avg20
+
+                volume_avg20,
+
+                breakout_score,
+                swing_score,
+
+                supertrend,
+                trend,
+
+                pivot,
+                cpr_top,
+                cpr_bottom,
+
+                r1,
+                r2,
+                r3,
+
+                s1,
+                s2,
+                s3
             )
             VALUES
-            (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            (
+                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                ?, ?, ?, ?, ?, ?, ?
+            )
             """,
             (
                 symbol,
                 row["date"],
-                float(row["EMA20"]) if pd.notna(row["EMA20"]) else None,
-                float(row["EMA50"]) if pd.notna(row["EMA50"]) else None,
-                float(row["EMA200"]) if pd.notna(row["EMA200"]) else None,
-                float(row["SMA20"]) if pd.notna(row["SMA20"]) else None,
-                float(row["SMA50"]) if pd.notna(row["SMA50"]) else None,
-                float(row["SMA200"]) if pd.notna(row["SMA200"]) else None,
-                float(row["RSI"]) if pd.notna(row["RSI"]) else None,
-                float(row["MACD"]) if pd.notna(row["MACD"]) else None,
-                float(row["MACD_SIGNAL"]) if pd.notna(row["MACD_SIGNAL"]) else None,
-                float(row["MACD_HIST"]) if pd.notna(row["MACD_HIST"]) else None,
-                float(row["BB_UPPER"]) if pd.notna(row["BB_UPPER"]) else None,
-                float(row["BB_MIDDLE"]) if pd.notna(row["BB_MIDDLE"]) else None,
-                float(row["BB_LOWER"]) if pd.notna(row["BB_LOWER"]) else None,
-                float(row["STOCHASTIC_K"]) if pd.notna(row["STOCHASTIC_K"]) else None,
-                float(row["STOCHASTIC_D"]) if pd.notna(row["STOCHASTIC_D"]) else None,
-                float(row["WILLIAMS_R"]) if pd.notna(row["WILLIAMS_R"]) else None,
-                float(row["OBV"]) if pd.notna(row["OBV"]) else None,
-                float(row["VWAP"]) if pd.notna(row["VWAP"]) else None,
-                float(row["VOLUME_AVG20"]) if pd.notna(row["VOLUME_AVG20"]) else None
+
+                row.get("EMA20"),
+                row.get("EMA50"),
+                row.get("EMA200"),
+
+                row.get("SMA20"),
+                row.get("SMA50"),
+                row.get("SMA200"),
+
+                row.get("RSI"),
+
+                row.get("MACD"),
+                row.get("MACD_SIGNAL"),
+                row.get("MACD_HIST"),
+
+                row.get("ATR"),
+                row.get("ADX"),
+                row.get("PLUS_DI"),
+                row.get("MINUS_DI"),
+
+                row.get("BB_UPPER"),
+                row.get("BB_MIDDLE"),
+                row.get("BB_LOWER"),
+
+                row.get("STOCHASTIC_K"),
+                row.get("STOCHASTIC_D"),
+
+                row.get("CCI"),
+                row.get("WILLIAMS_R"),
+
+                row.get("OBV"),
+                row.get("VWAP"),
+
+                row.get("VOLUME_AVG20"),
+
+                row.get("BREAKOUT_SCORE"),
+                row.get("SWING_SCORE"),
+
+                row.get("SUPERTREND"),
+                row.get("TREND"),
+
+                row.get("PIVOT"),
+                row.get("CPR_TOP"),
+                row.get("CPR_BOTTOM"),
+
+                row.get("R1"),
+                row.get("R2"),
+                row.get("R3"),
+
+                row.get("S1"),
+                row.get("S2"),
+                row.get("S3")
             )
         )
 
@@ -99,17 +172,33 @@ def load_symbol(symbol):
 
 def main():
 
-    symbols = [
-        "RELIANCE",
-        "TCS",
-        "INFY",
-        "HDFCBANK",
-        "ICICIBANK",
-        "SBIN"
-    ]
+    conn = get_connection()
 
-    for symbol in symbols:
-        load_symbol(symbol)
+    cur = conn.cursor()
+
+    cur.execute(
+        """
+        SELECT symbol
+        FROM stock_master
+        """
+    )
+
+    symbols = [x[0] for x in cur.fetchall()]
+
+    conn.close()
+
+    total = len(symbols)
+
+    for i, symbol in enumerate(symbols, start=1):
+
+        try:
+            load_symbol(symbol)
+
+            if i % 50 == 0:
+                print(f"{i}/{total} completed")
+
+        except Exception as e:
+            print(symbol, e)
 
 
 if __name__ == "__main__":

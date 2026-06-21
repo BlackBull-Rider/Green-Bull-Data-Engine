@@ -62,3 +62,20 @@ class YahooProvider:
 
             "shares_outstanding": info.get("sharesOutstanding")
         }
+
+
+def get_fundamentals(self, symbol):
+    ticker = yf.Ticker(f"{symbol}.NS")
+    info = ticker.info
+
+    return {
+        "symbol": symbol,
+        "market_cap": info.get("marketCap"),
+        "pe": info.get("trailingPE"),
+        "pb": info.get("priceToBook"),
+        "roe": info.get("returnOnEquity"),
+        "debt_equity": info.get("debtToEquity"),
+        "dividend_yield": info.get("dividendYield"),
+        "sector": info.get("sector"),
+        "industry": info.get("industry")
+    }

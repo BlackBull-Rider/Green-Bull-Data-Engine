@@ -1,25 +1,34 @@
 import pandas as pd
 from core.db import get_connection
 
-df = pd.read_csv("https://archives.nseindia.com/content/equities/EQUITY_L.csv")
 
-df = df.rename(columns={
-    "SYMBOL": "symbol",
-    "NAME OF COMPANY": "company_name"
-})
+def main():
 
-df = df[["symbol", "company_name"]]
-df["exchange"] = "NSE"
+    df = pd.read_csv(
+        "https://archives.nseindia.com/content/equities/EQUITY_L.csv"
+    )
 
-conn = get_connection()
+    df = df.rename(columns={
+        "SYMBOL": "symbol",
+        "NAME OF COMPANY": "company_name"
+    })
 
-df.to_sql(
-    "stock_master",
-    conn,
-    if_exists="replace",
-    index=False
-)
+    df = df[["symbol", "company_name"]]
+    df["exchange"] = "NSE"
 
-conn.close()
+    conn = get_connection()
 
-print("Loaded:", len(df), "stocks")
+    df.to_sql(
+        "stock_master",
+        conn,
+        if_exists="replace",
+        index=False
+    )
+
+    conn.close()
+
+    print("Loaded:", len(df), "stocks")
+
+
+if __name__ == "__main__":
+    main()

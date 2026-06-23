@@ -1,100 +1,155 @@
-data/daily_update.py
-
 from datetime import datetime
 from core.db import get_connection
 
 from data.sync_history import main as history_sync
+from data.load_indicators import main as indicators_sync
 from data.update_latest_indicators import main as latest_sync
+from data.load_fundamentals import main as fundamentals_sync
+from data.load_ipo import main as ipo_sync
+
 
 def log_update(process_name, status="SUCCESS"):
 
-conn = get_connection()
-cur = conn.cursor()
+    conn = get_connection()
+    cur = conn.cursor()
 
-cur.execute(
-    """
-    CREATE TABLE IF NOT EXISTS update_log (
-        process_name TEXT PRIMARY KEY,
-        last_run TEXT,
-        status TEXT
+    cur.execute(
+        """
+        CREATE TABLE IF NOT EXISTS update_log (
+            process_name TEXT PRIMARY KEY,
+            last_run TEXT,
+            status TEXT
+        )
+        """
     )
-    """
-)
 
-cur.execute(
-    """
-    INSERT OR REPLACE INTO update_log
-    (
-        process_name,
-        last_run,
-        status
+    cur.execute(
+        """
+        INSERT OR REPLACE INTO update_log
+        (
+            process_name,
+            last_run,
+            status
+        )
+        VALUES (?, ?, ?)
+        """,
+        (
+            process_name,
+            datetime.now().isoformat(),
+            status
+        )
     )
-    VALUES (?, ?, ?)
-    """,
-    (
-        process_name,
-        datetime.now().isoformat(),
-        status
-    )
-)
 
-conn.commit()
-conn.close()
+    conn.commit()
+    conn.close()
+
 
 def already_updated_today():
 
-conn = get_connection()
-cur = conn.cursor()
+    conn = get_connection()
+    cur = conn.cursor()
 
-cur.execute(
-    """
-    SELECT last_run
-    FROM update_log
-    WHERE process_name='daily_update'
-    """
-)
+    cur.execute(
+        """
+        SELECT last_run
+        FROM update_log
+        WHERE process_name='daily_update'
+        """
+    )
 
-row = cur.fetchone()
+    row = cur.fetchone()
 
-conn.close()
+    conn.close()
 
-if row is None:
-    return False
+    if row is None:
+        return False
 
-last_date = row[0][:10]
-today = datetime.now().strftime("%Y-%m-%d")
+    last_date = row[0][:10]
+    today = datetime.now().strftime("%Y-%m-%d")
 
-return last_date == today
+    return last_date == today
+
+
+def run_step(name, func):
+
+    try:
+
+        print("\n" + "=" * 60)
+        print(f"{name} STARTED")
+        print("=" * 60)
+
+        func()
+
+        log_update(name.lower())
+
+        print(f"{name} SUCCESS")
+
+    except Exception as e:
+
+        print(f"{name} FAILED")
+        print(e)
+
+        log_update(
+            name.lower(),
+            f"FAILED : {str(e)}"
+        )
+
+        raise
+
 
 def main():
 
-if already_updated_today():
+    if already_updated_today():
 
-    print("Already Updated Today")
-    return
+        print("Already Updated Today")
+        return
 
-try:
+    try:
 
-    print("History Sync Started")
-    history_sync()
-    log_update("history_sync")
+        # 1. Latest OHLCV Update
+        run_step(
+            "HISTORY_SYNC",
+            history_sync
+        )
 
-    print("Latest Indicator Refresh")
-    latest_sync()
-    log_update("latest_indicator_sync")
+        # 2. Recalculate Indicators
+        run_step(
+            "INDICATORS",
+            indicators_sync
+        )
 
-    log_update("daily_update")
+        # 3. Refresh Latest Indicators
+        run_step(
+            "LATEST_INDICATORS",
+            latest_sync
+        )
 
-    print("Daily Update Completed")
+        # 4. Fundamentals
+        run_step(
+            "FUNDAMENTALS",
+            fundamentals_sync
+        )
 
-except Exception as e:
+        # 5. IPO Data
+        run_step(
+            "IPO",
+            ipo_sync
+        )
 
-    print("Update Failed:", e)
+        log_update("daily_update")
 
-    log_update(
-        "daily_update",
-        f"FAILED : {str(e)}"
-    )
+        print("\nDAILY UPDATE COMPLETED")
 
-if name == "main":
-main()
+    except Exception as e:
+
+        print("\nDAILY UPDATE FAILED")
+        print(e)
+
+        log_update(
+            "daily_update",
+            f"FAILED : {str(e)}"
+        )
+
+
+if __name__ == "__main__":
+    main()

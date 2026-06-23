@@ -15,12 +15,10 @@ class YahooProvider:
                 f"{symbol}.NS"
             )
 
-            df = ticker.history(
+            return ticker.history(
                 period=period,
                 auto_adjust=False
             )
-
-            return df
 
         except Exception as e:
 
@@ -42,26 +40,155 @@ class YahooProvider:
                 f"{symbol}.NS"
             )
 
-            info = ticker.fast_info
+            info = ticker.info
+            fast = ticker.fast_info
+
+            roe = info.get("returnOnEquity")
+            if roe is not None:
+                roe *= 100
+
+            roce = info.get("returnOnAssets")
+            if roce is not None:
+                roce *= 100
+
+            sales_growth = info.get("revenueGrowth")
+            if sales_growth is not None:
+                sales_growth *= 100
+
+            profit_growth = info.get("earningsGrowth")
+            if profit_growth is not None:
+                profit_growth *= 100
+
+            operating_margin = info.get("operatingMargins")
+            if operating_margin is not None:
+                operating_margin *= 100
+
+            net_margin = info.get("profitMargins")
+            if net_margin is not None:
+                net_margin *= 100
+
+            dividend_yield = info.get("dividendYield")
+            if dividend_yield is not None:
+                dividend_yield *= 100
+
+            debt_equity = info.get("debtToEquity")
+
+            if debt_equity is not None:
+
+                if debt_equity > 10:
+                    debt_equity = debt_equity / 100
+
+            promoter = info.get(
+                "heldPercentInsiders"
+            )
+
+            if promoter is not None:
+                promoter *= 100
+
+            institutional = info.get(
+                "heldPercentInstitutions"
+            )
+
+            if institutional is not None:
+                institutional *= 100
 
             return {
 
-                "symbol": symbol,
+                "symbol":
+                    symbol,
 
                 "market_cap":
-                    info.get("marketCap"),
+                    fast.get("marketCap"),
 
                 "week52_high":
-                    info.get("yearHigh"),
+                    fast.get("yearHigh"),
 
                 "week52_low":
-                    info.get("yearLow"),
+                    fast.get("yearLow"),
 
                 "shares_outstanding":
-                    info.get("shares"),
+                    fast.get("shares"),
 
                 "current_price":
-                    info.get("lastPrice")
+                    fast.get("lastPrice"),
+
+                "pe":
+                    info.get("trailingPE"),
+
+                "pb":
+                    info.get("priceToBook"),
+
+                "roe":
+                    roe,
+
+                "roce":
+                    roce,
+
+                "debt_equity":
+                    debt_equity,
+
+                "dividend_yield":
+                    dividend_yield,
+
+                "beta":
+                    info.get("beta"),
+
+                "eps":
+                    info.get("trailingEps"),
+
+                "book_value":
+                    info.get("bookValue"),
+
+                "sector":
+                    info.get("sector"),
+
+                "industry":
+                    info.get("industry"),
+
+                "cash":
+                    info.get("totalCash"),
+
+                "free_cash_flow":
+                    info.get("freeCashflow"),
+
+                "enterprise_value":
+                    info.get("enterpriseValue"),
+
+                "target_price":
+                    info.get("targetMeanPrice"),
+
+                "recommendation":
+                    info.get("recommendationKey"),
+
+                "current_ratio":
+                    info.get("currentRatio"),
+
+                "quick_ratio":
+                    info.get("quickRatio"),
+
+                "operating_margin":
+                    operating_margin,
+
+                "net_margin":
+                    net_margin,
+
+                "sales_growth":
+                    sales_growth,
+
+                "profit_growth":
+                    profit_growth,
+
+                "promoter_holding":
+                    promoter,
+
+                "institutional_holding":
+                    institutional,
+
+                "fii_holding":
+                    institutional,
+
+                "dii_holding":
+                    None
 
             }
 
@@ -126,68 +253,10 @@ class YahooProvider:
         except:
             cashflow = None
 
-        if (
-            income is None
-            or income.empty
-        ):
+        if income is None or income.empty:
             return rows
 
         for col in income.columns:
-
-            revenue = None
-            net_income = None
-            total_assets = None
-            total_debt = None
-            operating_cf = None
-            free_cf = None
-
-            try:
-                revenue = income.loc[
-                    "Total Revenue",
-                    col
-                ]
-            except:
-                pass
-
-            try:
-                net_income = income.loc[
-                    "Net Income",
-                    col
-                ]
-            except:
-                pass
-
-            try:
-                total_assets = balance.loc[
-                    "Total Assets",
-                    col
-                ]
-            except:
-                pass
-
-            try:
-                total_debt = balance.loc[
-                    "Total Debt",
-                    col
-                ]
-            except:
-                pass
-
-            try:
-                operating_cf = cashflow.loc[
-                    "Operating Cash Flow",
-                    col
-                ]
-            except:
-                pass
-
-            try:
-                free_cf = cashflow.loc[
-                    "Free Cash Flow",
-                    col
-                ]
-            except:
-                pass
 
             rows.append({
 
@@ -198,22 +267,39 @@ class YahooProvider:
                     str(col.date()),
 
                 "revenue":
-                    revenue,
+                    income.loc["Total Revenue", col]
+                    if "Total Revenue" in income.index
+                    else None,
 
                 "net_income":
-                    net_income,
+                    income.loc["Net Income", col]
+                    if "Net Income" in income.index
+                    else None,
 
                 "total_assets":
-                    total_assets,
+                    balance.loc["Total Assets", col]
+                    if balance is not None
+                    and "Total Assets" in balance.index
+                    else None,
 
                 "total_debt":
-                    total_debt,
+                    balance.loc["Total Debt", col]
+                    if balance is not None
+                    and "Total Debt" in balance.index
+                    else None,
 
                 "operating_cf":
-                    operating_cf,
+                    cashflow.loc["Operating Cash Flow", col]
+                    if cashflow is not None
+                    and "Operating Cash Flow" in cashflow.index
+                    else None,
 
                 "free_cf":
-                    free_cf
+                    cashflow.loc["Free Cash Flow", col]
+                    if cashflow is not None
+                    and "Free Cash Flow" in cashflow.index
+                    else None
+
             })
 
         return rows

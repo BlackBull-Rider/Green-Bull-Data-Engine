@@ -12,13 +12,15 @@ def add_indicators(df):
     volume = df["Volume"]
 
     # =====================
-    # Volume Average
+    # Volume
     # =====================
+
     df["VOLUME_AVG20"] = volume.rolling(20).mean()
 
     # =====================
     # EMA
     # =====================
+
     df["EMA20"] = close.ewm(span=20, adjust=False).mean()
     df["EMA50"] = close.ewm(span=50, adjust=False).mean()
     df["EMA200"] = close.ewm(span=200, adjust=False).mean()
@@ -26,27 +28,31 @@ def add_indicators(df):
     # =====================
     # SMA
     # =====================
+
     df["SMA20"] = close.rolling(20).mean()
     df["SMA50"] = close.rolling(50).mean()
     df["SMA200"] = close.rolling(200).mean()
 
     # =====================
-    # RSI
+    # RSI (Wilder)
     # =====================
+
     delta = close.diff()
 
-    gain = delta.where(delta > 0, 0)
-    loss = -delta.where(delta < 0, 0)
+    gain = delta.clip(lower=0)
+    loss = -delta.clip(upper=0)
 
-    avg_gain = gain.rolling(14).mean()
-    avg_loss = loss.rolling(14).mean()
+    avg_gain = gain.ewm(alpha=1/14, adjust=False).mean()
+    avg_loss = loss.ewm(alpha=1/14, adjust=False).mean()
 
-    rs = avg_gain / avg_loss
+    rs = avg_gain / avg_loss.replace(0, np.nan)
+
     df["RSI"] = 100 - (100 / (1 + rs))
 
     # =====================
     # MACD
     # =====================
+
     ema12 = close.ewm(span=12, adjust=False).mean()
     ema26 = close.ewm(span=26, adjust=False).mean()
 
@@ -55,8 +61,9 @@ def add_indicators(df):
     df["MACD_HIST"] = df["MACD"] - df["MACD_SIGNAL"]
 
     # =====================
-    # Bollinger Bands
+    # Bollinger
     # =====================
+
     bb_mid = close.rolling(20).mean()
     bb_std = close.rolling(20).std()
 
@@ -65,58 +72,66 @@ def add_indicators(df):
     df["BB_LOWER"] = bb_mid - (2 * bb_std)
 
     # =====================
-    # ATR
+    # ATR (Wilder)
     # =====================
+
     tr1 = high - low
-    tr2 = abs(high - close.shift())
-    tr3 = abs(low - close.shift())
+    tr2 = (high - close.shift()).abs()
+    tr3 = (low - close.shift()).abs()
 
     tr = pd.concat([tr1, tr2, tr3], axis=1).max(axis=1)
 
-    df["ATR"] = tr.rolling(14).mean()
+    df["ATR"] = tr.ewm(alpha=1/14, adjust=False).mean()
 
     # =====================
-    # ADX
+    # ADX (Wilder)
     # =====================
-    plus_dm = high.diff()
-    minus_dm = -low.diff()
+
+    up_move = high.diff()
+    down_move = -low.diff()
 
     plus_dm = np.where(
-        (plus_dm > minus_dm) & (plus_dm > 0),
-        plus_dm,
-        0
+        (up_move > down_move) & (up_move > 0),
+        up_move,
+        0.0
     )
 
     minus_dm = np.where(
-        (minus_dm > plus_dm) & (minus_dm > 0),
-        minus_dm,
-        0
+        (down_move > up_move) & (down_move > 0),
+        down_move,
+        0.0
     )
+
+    plus_dm = pd.Series(plus_dm, index=df.index)
+    minus_dm = pd.Series(minus_dm, index=df.index)
 
     atr = df["ATR"]
 
     plus_di = (
-        pd.Series(plus_dm).rolling(14).sum()
+        plus_dm.ewm(alpha=1/14, adjust=False).mean()
         / atr
     ) * 100
 
     minus_di = (
-        pd.Series(minus_dm).rolling(14).sum()
+        minus_dm.ewm(alpha=1/14, adjust=False).mean()
         / atr
     ) * 100
 
     dx = (
-        abs(plus_di - minus_di)
+        (plus_di - minus_di).abs()
         / (plus_di + minus_di)
     ) * 100
 
+    adx = dx.ewm(alpha=1/14, adjust=False).mean()
+
     df["PLUS_DI"] = plus_di
     df["MINUS_DI"] = minus_di
-    df["ADX"] = dx.rolling(14).mean()
+    df["ADX"] = adx
 
     # =====================
-    # Stochastic
+    # STOCHASTIC
     # =====================
+
     high14 = high.rolling(14).max()
     low14 = low.rolling(14).min()
 
@@ -132,8 +147,9 @@ def add_indicators(df):
     )
 
     # =====================
-    # Williams %R
+    # WILLIAMS %R
     # =====================
+
     df["WILLIAMS_R"] = (
         (high14 - close)
         / (high14 - low14)
@@ -142,6 +158,7 @@ def add_indicators(df):
     # =====================
     # OBV
     # =====================
+
     df["OBV"] = (
         np.sign(close.diff())
         .fillna(0)
@@ -152,84 +169,75 @@ def add_indicators(df):
     # =====================
     # VWAP
     # =====================
+
     df["VWAP"] = (
         (close * volume).cumsum()
         / volume.cumsum()
     )
 
     # =====================
-    # Supertrend
+    # SUPERTREND
     # =====================
+
+    multiplier = 3.0
+
     hl2 = (high + low) / 2
 
-    upperband = hl2 + (3 * df["ATR"])
-    lowerband = hl2 - (3 * df["ATR"])
+    basic_upper = hl2 + (multiplier * df["ATR"])
+    basic_lower = hl2 - (multiplier * df["ATR"])
 
-    supertrend = []
+    final_upper = basic_upper.copy()
+    final_lower = basic_lower.copy()
+
+    for i in range(1, len(df)):
+
+        if (
+            basic_upper.iloc[i] < final_upper.iloc[i - 1]
+            or close.iloc[i - 1] > final_upper.iloc[i - 1]
+        ):
+            final_upper.iloc[i] = basic_upper.iloc[i]
+        else:
+            final_upper.iloc[i] = final_upper.iloc[i - 1]
+
+        if (
+            basic_lower.iloc[i] > final_lower.iloc[i - 1]
+            or close.iloc[i - 1] < final_lower.iloc[i - 1]
+        ):
+            final_lower.iloc[i] = basic_lower.iloc[i]
+        else:
+            final_lower.iloc[i] = final_lower.iloc[i - 1]
+
+    supertrend = pd.Series(index=df.index, dtype=float)
+    trend = []
 
     for i in range(len(df)):
+
         if i == 0:
-            supertrend.append(close.iloc[i])
-        else:
-            if close.iloc[i] > upperband.iloc[i - 1]:
-                supertrend.append(lowerband.iloc[i])
+            supertrend.iloc[i] = final_lower.iloc[i]
+            trend.append("BULLISH")
+            continue
+
+        prev_st = supertrend.iloc[i - 1]
+
+        if prev_st == final_upper.iloc[i - 1]:
+
+            if close.iloc[i] <= final_upper.iloc[i]:
+                supertrend.iloc[i] = final_upper.iloc[i]
+                trend.append("BEARISH")
             else:
-                supertrend.append(upperband.iloc[i])
+                supertrend.iloc[i] = final_lower.iloc[i]
+                trend.append("BULLISH")
+
+        else:
+
+            if close.iloc[i] >= final_lower.iloc[i]:
+                supertrend.iloc[i] = final_lower.iloc[i]
+                trend.append("BULLISH")
+            else:
+                supertrend.iloc[i] = final_upper.iloc[i]
+                trend.append("BEARISH")
 
     df["SUPERTREND"] = supertrend
-
-    df["TREND"] = np.where(
-        close > df["SUPERTREND"],
-        "BULLISH",
-        "BEARISH"
-    )
-
-    # =====================
-    # Pivot
-    # =====================
-    pivot = (high + low + close) / 3
-
-    bc = (high + low) / 2
-    tc = (pivot - bc) + pivot
-
-    df["PIVOT"] = pivot
-    df["CPR_TOP"] = tc
-    df["CPR_BOTTOM"] = bc
-
-    # Resistance
-    df["R1"] = (2 * pivot) - low
-    df["R2"] = pivot + (high - low)
-    df["R3"] = high + 2 * (pivot - low)
-
-    # Support
-    df["S1"] = (2 * pivot) - high
-    df["S2"] = pivot - (high - low)
-    df["S3"] = low - 2 * (high - pivot)
-
-    # =====================
-    # Breakout Score
-    # =====================
-    df["BREAKOUT_SCORE"] = np.where(
-        (
-            (close > df["EMA50"])
-            & (df["RSI"] > 60)
-            & (volume > df["VOLUME_AVG20"])
-        ),
-        100,
-        0
-    )
-
-    # =====================
-    # Swing Score
-    # =====================
-    df["SWING_SCORE"] = np.where(
-        (
-            (close > df["EMA20"])
-            & (df["EMA20"] > df["EMA50"])
-            & (df["RSI"] > 55)
-        ),
-        100,
-        0
-    )
+    df["TREND"] = trend
 
     return df

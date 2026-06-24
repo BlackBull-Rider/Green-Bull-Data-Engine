@@ -19,8 +19,8 @@ TECHNICAL_WEIGHTS = {
 
 class TechnicalBrain:
 
-@staticmethod  
-def _safe(value) -> float:  
+  @staticmethod  
+  def _safe(value) -> float:  
     try:  
         if value is None:  
             return 0.0  
@@ -28,8 +28,8 @@ def _safe(value) -> float:
     except Exception:  
         return 0.0  
 
-@staticmethod  
-def _ema_analysis(row: Dict):  
+  @staticmethod  
+  def _ema_analysis(row: Dict):  
 
     score = 0  
     reasons = []  

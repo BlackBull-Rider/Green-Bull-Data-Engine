@@ -213,7 +213,7 @@ def _adx_analysis(row: Dict):
 
         "reasons": reasons  
     }  
-    @staticmethod  
+@staticmethod  
 def _macd_analysis(row: Dict):  
 
     score = 0  
@@ -448,7 +448,7 @@ def _atr_analysis(row: Dict):
 
         "risk": risk  
     }  
-    @staticmethod  
+@staticmethod  
 def _support_resistance_analysis(row: Dict):  
 
     score = 0  
@@ -712,7 +712,7 @@ def _confidence(score: float):
             round(score)  
         )  
     )  
-    @staticmethod  
+@staticmethod  
 def analyze(row: Dict):  
 
     ema = TechnicalBrain._ema_analysis(row)  

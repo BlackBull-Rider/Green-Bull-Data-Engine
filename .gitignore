@@ -1,3 +1,21 @@
 __pycache__/
 *.pyc
 database/*.db
+# Python
+__pycache__/
+*.pyc
+
+# Logs
+logs/
+*.log
+
+# Local backups
+backup/
+
+# Database cache
+*.sqlite-shm
+*.sqlite-wal
+
+# IDE
+.vscode/
+.idea/

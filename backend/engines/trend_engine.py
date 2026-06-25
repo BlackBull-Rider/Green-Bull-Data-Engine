@@ -95,7 +95,7 @@ class TrendEngine:
 
         closes = []
 
-        for row in history[-30:]:
+        for row in history[-60:]:
 
             ema20.append(
 
@@ -262,7 +262,8 @@ class TrendEngine:
                 "EMA Slopes Rising"
 
             )
-          distance20_50 = TrendEngine._ema_distance(
+            
+            distance20_50 = TrendEngine._ema_distance(
             current20,
             current50
         )
@@ -462,7 +463,8 @@ class TrendEngine:
             100,
             continuation_probability
         )
-      trend_stage = "SIDEWAYS"
+      
+        trend_stage = "SIDEWAYS"
 
         if (
             trend == "STRONG_BULLISH"
@@ -597,7 +599,8 @@ class TrendEngine:
                 reversal_probability
             )
         )
-trend_strength = "WEAK"
+
+        trend_strength = "WEAK"
 
         if trend_score >= 35:
 

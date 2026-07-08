@@ -9,6 +9,14 @@ import pandas as pd
 import numpy as np
 import yfinance as yf
 import requests
+import warnings
+
+warnings.filterwarnings(
+    "ignore",
+    category=DeprecationWarning,
+    module="yfinance",
+)
+
 
 from backend.providers.base_provider import BaseProvider
 
@@ -204,7 +212,10 @@ class YahooProvider(BaseProvider):
                     'expiry': time.time() + self.cache_ttl
                 }
         else:
-            self.logger.warning(f"Download: {cache_key} returned None")
+            self.logger.debug(
+                "No data available for %s",
+                cache_key,
+            )
             
         return data
 
@@ -214,10 +225,32 @@ class YahooProvider(BaseProvider):
             return self.safe_dict(ticker.info)
         return self._fetch_cached(symbol, "info", fetch) or {}
 
+
     def _safe_fast_info(self, symbol: str) -> Dict[str, Any]:
         def fetch() -> Dict[str, Any]:
             ticker = self._ticker(symbol)
-            return {k: v for k, v in ticker.fast_info.items()}
+
+            try:
+                fi = ticker.fast_info
+            except Exception:
+                return {}
+
+            result: Dict[str, Any] = {}
+
+            for key in (
+                "market_cap",
+                "shares",
+                "last_price",
+                "currency",
+                "timezone",
+            ):
+                try:
+                    result[key] = fi.get(key)
+                except Exception:
+                    continue
+
+            return result
+
         return self._fetch_cached(symbol, "fast_info", fetch) or {}
 
     # =========================================================================
@@ -353,8 +386,12 @@ class YahooProvider(BaseProvider):
             return self.safe_dataframe(self._ticker(symbol).earnings_dates)
         return self._fetch_cached(symbol, "earnings_dates", fetch)
 
+
     def get_earnings_history(self, symbol: str) -> Optional[pd.DataFrame]:
-        return self.get_earnings_dates(symbol)
+        """
+        Yahoo Finance earnings sync is temporarily disabled.
+        """
+        return None
 
     def get_earnings(self, symbol: str) -> Optional[pd.DataFrame]:
         def fetch() -> Optional[pd.DataFrame]:

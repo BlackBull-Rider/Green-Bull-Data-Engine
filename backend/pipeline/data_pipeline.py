@@ -244,11 +244,17 @@ class DataPipeline(BasePipeline):
                 try: return float(v) if v is not None else None
                 except Exception: return None
             
-            mc = sf("market_cap") if sf("market_cap") is not None else market_cap_val
-            ev = sf("enterprise_value") if sf("enterprise_value") is not None else enterprise_value_val
-            so = sf("shares_outstanding") if sf("shares_outstanding") is not None else shares_out_val
-            b = sf("beta") if sf("beta") is not None else beta_val
-            dy = sf("dividend_yield") if sf("dividend_yield") is not None else div_yield_val
+            metric_market_cap = sf("market_cap")
+            metric_enterprise_value = sf("enterprise_value")
+            metric_shares = sf("shares_outstanding")
+            metric_beta = sf("beta")
+            metric_dividend_yield = sf("dividend_yield")
+
+            mc = metric_market_cap if metric_market_cap is not None else market_cap_val
+            ev = metric_enterprise_value if metric_enterprise_value is not None else enterprise_value_val
+            so = metric_shares if metric_shares is not None else shares_out_val
+            b = metric_beta if metric_beta is not None else beta_val
+            dy = metric_dividend_yield if metric_dividend_yield is not None else div_yield_val
 
             rows.append((
                 symbol, fy, fq, str(currency) if currency else None,
@@ -270,26 +276,67 @@ class DataPipeline(BasePipeline):
             ))
         return rows
 
+
     def _prepare_company_profile(self, data: Dict[str, Any], symbol: str) -> Optional[Tuple]:
-        if not data or data.get("company_name") is None and data.get("sector") is None:
+        if not data:
             return None
-            
-        def sstr(k):
-            v = data.get(k)
-            return str(v) if v is not None else None
-        def sint(k):
-            v = data.get(k)
-            try: return int(float(v)) if v is not None else None
-            except Exception: return None
-        
+
+        if not any(
+            data.get(k)
+            for k in (
+                "company_name",
+                "short_name",
+                "long_name",
+                "sector",
+                "industry",
+            )
+        ):
+            return None
+
+        def sstr(key: str) -> Optional[str]:
+            value = data.get(key)
+            return str(value) if value is not None else None
+
+        def sint(key: str) -> Optional[int]:
+            value = data.get(key)
+            try:
+                return int(float(value)) if value is not None else None
+            except Exception:
+                return None
+
         return (
             symbol,
-            sstr("company_name"), sstr("short_name"), sstr("long_name"), sstr("exchange"),
-            sstr("exchange_code"), sstr("isin"), sstr("sector"), sstr("industry"), sstr("sub_industry"),
-            sstr("market"), sstr("currency"), sstr("country"), sstr("state"), sstr("city"), sstr("address"),
-            sstr("zipcode"), sstr("website"), sstr("phone"), sstr("email"), sstr("ceo"), sstr("cfo"),
-            sstr("chairman"), sint("employees"), sint("founded_year"), sstr("business_summary"),
-            sstr("logo_url"), sstr("timezone"), data.get("updated_at", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+            sstr("company_name"),
+            sstr("short_name"),
+            sstr("long_name"),
+            sstr("exchange"),
+            sstr("exchange_code"),
+            sstr("isin"),
+            sstr("sector"),
+            sstr("industry"),
+            sstr("sub_industry"),
+            sstr("market"),
+            sstr("currency"),
+            sstr("country"),
+            sstr("state"),
+            sstr("city"),
+            sstr("address"),
+            sstr("zipcode"),
+            sstr("website"),
+            sstr("phone"),
+            sstr("email"),
+            sstr("ceo"),
+            sstr("cfo"),
+            sstr("chairman"),
+            sint("employees"),
+            sint("founded_year"),
+            sstr("business_summary"),
+            sstr("logo_url"),
+            sstr("timezone"),
+            data.get(
+                "updated_at",
+                datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            ),
         )
 
     def _prepare_action_rows(self, data: List[Dict[str, Any]], symbol: str) -> List[Tuple]:
@@ -340,22 +387,34 @@ class DataPipeline(BasePipeline):
             ))
         return rows
 
+
     def _prepare_analyst_row(self, data: Dict[str, Any], symbol: str) -> Optional[Tuple]:
-        if not data or (data.get("target_price") is None and data.get("recommendation") is None):
+        if not data:
             return None
-            
-        def sf(k):
-            v = data.get(k)
-            try: return float(v) if v is not None else None
-            except Exception: return None
-        
+
+        if data.get("target_price") is None and data.get("recommendation") is None:
+            return None
+
+        def sf(key: str) -> Optional[float]:
+            value = data.get(key)
+            try:
+                return float(value) if value is not None else None
+            except Exception:
+                return None
+
         return (
             symbol,
-            sf("target_price"), sf("target_high"), sf("target_low"), sf("target_mean"),
+            sf("target_price"),
+            sf("target_high"),
+            sf("target_low"),
+            sf("target_mean"),
             str(data.get("recommendation")) if data.get("recommendation") else None,
             str(data.get("recommendation_key")) if data.get("recommendation_key") else None,
-            int(sf("number_of_analysts") or 0) if sf("number_of_analysts") is not None else None,
-            data.get("updated_at", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+            self.provider.safe_int(data.get("number_of_analysts")),
+            data.get(
+                "updated_at",
+                datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            ),
         )
 
     def _prepare_earnings_rows(self, data: List[Dict[str, Any]], symbol: str) -> List[Tuple]:
@@ -380,14 +439,17 @@ class DataPipeline(BasePipeline):
         return rows
 
     def _bulk_insert_history(self, db, rows: List[Tuple]) -> int:
-        if not rows: return 0
+        if not rows:
+            return 0
+
         query = """
-            INSERT OR IGNORE INTO historical_data 
-            (symbol, date, open, high, low, close, volume) 
+            INSERT OR IGNORE INTO historical_data
+            (symbol, date, open, high, low, close, volume)
             VALUES (?, ?, ?, ?, ?, ?, ?)
         """
-        cursor = db.executemany(query, rows)
-        return cursor.rowcount
+
+        db.executemany(query, rows)
+        return len(rows)
 
     def _save_fundamentals(self, db, symbol: str, fundamentals: Dict[str, Any]) -> bool:
         if not fundamentals or (fundamentals.get("market_cap") is None and fundamentals.get("pe") is None):
@@ -451,8 +513,8 @@ class DataPipeline(BasePipeline):
                 ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
             )
         """
-        cursor = db.executemany(query, rows)
-        return cursor.rowcount
+        db.executemany(query, rows)
+        return len(rows)
 
     def _save_company_profile(self, db, row: Tuple) -> bool:
         if not row: return False
@@ -476,8 +538,8 @@ class DataPipeline(BasePipeline):
                 face_value_change, buyback, merger, demerger, spin_off, description, updated_at
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """
-        cursor = db.executemany(query, rows)
-        return cursor.rowcount
+        db.executemany(query, rows)
+        return len(rows)
 
     def _save_shareholders(self, db, rows: List[Tuple]) -> int:
         if not rows: return 0
@@ -488,8 +550,8 @@ class DataPipeline(BasePipeline):
                 retail_holding, public_holding, insider_holding, others_holding, updated_at
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """
-        cursor = db.executemany(query, rows)
-        return cursor.rowcount
+        db.executemany(query, rows)
+        return len(rows)
 
     def _save_analyst(self, db, row: Tuple) -> bool:
         if not row: return False
@@ -509,8 +571,8 @@ class DataPipeline(BasePipeline):
                 symbol, quarter, estimate, reported, surprise, surprise_percent, updated_at
             ) VALUES (?, ?, ?, ?, ?, ?, ?)
         """
-        cursor = db.executemany(query, rows)
-        return cursor.rowcount
+        db.executemany(query, rows)
+        return len(rows)
 
     def _update_log(self, db, status: str) -> None:
         if status == "RUNNING":
@@ -523,11 +585,14 @@ class DataPipeline(BasePipeline):
             INSERT OR REPLACE INTO update_log (process_name, last_run, status)
             VALUES (?, ?, ?)
         """
-        try:
-            db.execute(query, ("DATA_PIPELINE", datetime.now().strftime("%Y-%m-%d %H:%M:%S"), status_string))
-            db.commit()
-        except Exception:
-            db.rollback()
+        db.execute(
+            query,
+            (
+                "DATA_PIPELINE",
+                datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                status_string,
+            ),
+        )
 
     def _history_statistics(self, total_symbols: int) -> None:
         exec_time = max(0.0, self.stats["end_time"] - self.stats["start_time"])
@@ -580,8 +645,16 @@ class DataPipeline(BasePipeline):
                 for index, symbol in enumerate(symbols, 1):
                     self.logger.info(f"Current Symbol: {symbol} ({index}/{total_symbols})")
                     has_fatal_error = False
+
+                    success_count = 0
+                    empty_count = 0
+                    failed_count = 0
+                    failed_modules = []
+
+                    symbol_start = time.perf_counter()
                     
                     try:
+
                         start_date = self._download_start(symbol)
                         start_dt = datetime.strptime(start_date, "%Y-%m-%d")
                         
@@ -589,84 +662,115 @@ class DataPipeline(BasePipeline):
                             self.stats["skipped_symbols"] += 1
                             continue
                             
-                        # History Module
+                                                # History Module
                         try:
                             df_history = self._download_history(symbol, start_date, end_date)
                             rows = self._prepare_history_rows(df_history, symbol)
                             if rows:
                                 inserted_count = self._bulk_insert_history(db, rows)
+                                if rows:
+                                    success_count += 1
+                                else:
+                                    empty_count += 1
                                 self.stats["history_rows"] += inserted_count
+                                success_count += 1
                                 max_date = max(row[1] for row in rows)
                                 self._last_dates_cache_dict[symbol] = max_date
                         except Exception as e:
+                            failed_count += 1
+                            failed_modules.append("History")
                             self.logger.error(f"History failure for {symbol}: {e}")
                             
-                        # Fundamentals Module
+                                                # Fundamentals Module
                         try:
                             fundamentals = self._download_fundamentals(symbol)
                             if self._save_fundamentals(db, symbol, fundamentals):
                                 self.stats["fundamental_rows"] += 1
+                                success_count += 1
+                            else:
+                                empty_count += 1
+                                self.stats["fundamental_rows"] += 1
+                                success_count += 1
                         except Exception as e:
+                            failed_count += 1
+                            failed_modules.append("Fundamentals")
                             self.logger.error(f"Fundamentals failure for {symbol}: {e}")
                             
-                        # Financials Module
+                                                # Financials Module
                         try:
                             financial_data = self._download_financials(symbol)
                             fin_rows = self._prepare_financial_rows(financial_data, symbol)
                             if fin_rows:
+                                success_count += 1
                                 inserted_count = self._save_financials(db, fin_rows)
                                 self.stats["financial_rows"] += inserted_count
+                                success_count += 1
                         except Exception as e:
+                            failed_count += 1
+                            failed_modules.append("Financials")
                             self.logger.error(f"Financials failure for {symbol}: {e}")
                             
-                        # Company Profile Module
+                                                # Company Profile Module
                         try:
                             profile_data = self._download_company_profile(symbol)
                             prof_row = self._prepare_company_profile(profile_data, symbol)
                             if prof_row:
                                 if self._save_company_profile(db, prof_row):
                                     self.stats["company_rows"] += 1
+                                    success_count += 1
+                            else:
+                                empty_count += 1
+                                if self._save_company_profile(db, prof_row):
+                                    self.stats["company_rows"] += 1
+                                    success_count += 1
                         except Exception as e:
+                            failed_count += 1
+                            failed_modules.append("Company")
                             self.logger.error(f"Company Profile failure for {symbol}: {e}")
                             
-                        # Corporate Actions Module
-                        try:
-                            actions_data = self._download_actions(symbol)
-                            action_rows = self._prepare_action_rows(actions_data, symbol)
-                            if action_rows:
-                                inserted_count = self._save_actions(db, action_rows)
-                                self.stats["corporate_action_rows"] += inserted_count
-                        except Exception as e:
-                            self.logger.error(f"Actions failure for {symbol}: {e}")
+                                                # Corporate Actions Module (disabled)
+                        empty_count += 1
                             
-                        # Shareholding Module
+                                                # Shareholding Module
                         try:
                             share_data = self._download_shareholders(symbol)
                             share_rows = self._prepare_shareholding_rows(share_data, symbol)
                             if share_rows:
+                                success_count += 1
                                 inserted_count = self._save_shareholders(db, share_rows)
                                 self.stats["shareholding_rows"] += inserted_count
+                                success_count += 1
                         except Exception as e:
+                            failed_count += 1
+                            failed_modules.append("Shareholding")
                             self.logger.error(f"Shareholders failure for {symbol}: {e}")
                             
-                        # Analyst Module
+                                                # Analyst Module
                         try:
                             analyst_data = self._download_recommendation(symbol)
                             analyst_row = self._prepare_analyst_row(analyst_data, symbol)
                             if analyst_row:
+                                success_count += 1
                                 if self._save_analyst(db, analyst_row):
                                     self.stats["analyst_rows"] += 1
+                                    success_count += 1
                         except Exception as e:
+                            failed_count += 1
+                            failed_modules.append("Analyst")
                             self.logger.error(f"Analyst Recommendations failure for {symbol}: {e}")
                             
-                        # Earnings Module
+                                                # Earnings Module
                         try:
                             earnings_data = self._download_earnings(symbol)
                             earnings_rows = self._prepare_earnings_rows(earnings_data, symbol)
                             if earnings_rows:
+                                success_count += 1
                                 inserted_count = self._save_earnings(db, earnings_rows)
                                 self.stats["earnings_rows"] += inserted_count
+                                success_count += 1
                         except Exception as e:
+                            failed_count += 1
+                            failed_modules.append("Earnings")
                             self.logger.error(f"Earnings failure for {symbol}: {e}")
                             
                         self.stats["processed_symbols"] += 1
@@ -675,14 +779,24 @@ class DataPipeline(BasePipeline):
                         has_fatal_error = True
                         self.logger.error(f"Failures processing {symbol}: {e}")
                         
-                    # Transaction Commit per symbol
-                    try:
-                        db.commit()
-                    except Exception as e:
-                        db.rollback()
-                        self.logger.error(f"Database commit failed for {symbol}: {e}")
-                        has_fatal_error = True
                         
+                    elapsed = time.perf_counter() - symbol_start
+
+                    eta = ((time.time() - self.stats["start_time"]) / index) * (total_symbols - index)
+
+                    eta_min = int(eta // 60)
+                    eta_sec = int(eta % 60)
+
+                    print(
+                        f"[{index:04d}/{total_symbols}] "
+                        f"{symbol:<15} "
+                        f"✓{success_count} "
+                        f"○{empty_count} "
+                        f"✗{failed_count} "
+                        f"{elapsed:.2f}s",
+                        flush=True,
+                    )
+
                     if has_fatal_error:
                         self.stats["failed_symbols"] += 1
 

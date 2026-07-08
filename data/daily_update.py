@@ -1,5 +1,5 @@
 from datetime import datetime
-from core.db import get_connection
+from backend.core.db import get_connection
 
 from data.load_universe import main as universe_update
 from data.sync_history import main as history_update

@@ -1,6 +1,6 @@
 """
 GREEN BULL DATA ENGINE
-Module: backend/core/db.py
+Module: core/db.py
 
 Enterprise SQLite Database Layer
 Python 3.13 Compatible

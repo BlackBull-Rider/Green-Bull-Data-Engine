@@ -1,5 +1,5 @@
-from providers.yahoo_provider import YahooProvider
-from core.db import get_connection
+from backend.providers.yahoo_provider import YahooProvider
+from backend.core.db import get_connection
 
 def create_table():
     conn = get_connection()

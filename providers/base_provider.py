@@ -1,7 +1,7 @@
 """
 GREEN BULL DATA ENGINE
 
-Module: backend/providers/base_provider.py
+Module: providers/base_provider.py
 
 Base Provider Interface
 Python 3.13

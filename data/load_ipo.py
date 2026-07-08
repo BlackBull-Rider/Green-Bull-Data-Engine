@@ -1,4 +1,5 @@
-from core.db import get_connection
+from backend.core.db import get_connection
+from backend.providers.yahoo_provider import YahooProvider
 import yfinance as yf
 from datetime import datetime
 import time

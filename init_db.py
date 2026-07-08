@@ -1,4 +1,4 @@
-from core.db import get_connection
+from backend.core.db import get_connection
 
 
 def create_tables():

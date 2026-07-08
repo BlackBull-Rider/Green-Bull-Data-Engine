@@ -1,5 +1,5 @@
 from datetime import datetime
-from core.db import get_connection
+from backend.core.db import get_connection
 
 from data.sync_history import main as history_sync
 from data.load_indicators import main as indicators_sync

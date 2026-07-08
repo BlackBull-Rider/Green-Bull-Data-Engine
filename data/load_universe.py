@@ -1,5 +1,5 @@
 import pandas as pd
-from core.db import get_connection
+from backend.core.db import get_connection
 
 
 def main():

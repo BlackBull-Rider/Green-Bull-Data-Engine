@@ -1,7 +1,7 @@
 from data.load_universe import main as universe_sync
 from data.load_fundamentals import main as fundamentals_sync
 from data.load_ipo import main as ipo_sync
-
+from backend.core.db import get_connection
 
 def main():
 
